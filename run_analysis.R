@@ -9,7 +9,7 @@ load_data <- function()
   if(!file.exists("UCI HAR Dataset")) unzip(adl_file)
 }
 
-load_test <- function(rows=10)
+run_analysis <- function(rows=-1)
 {
   alt <- read.table("UCI HAR Dataset//activity_labels.txt", header=F, col.names=c("activity_id","activity_label"), nrows=rows)
   aoTest <- read.table("UCI HAR Dataset//test//y_test.txt", header=F, col.names=c("activity_id"), nrows=rows)
@@ -43,8 +43,8 @@ load_test <- function(rows=10)
 }
 
 load_data()
-load_test()
 
-#harm <- melt(har, id=(c("sub_id","activity_label")))
-#har2 <- dcast(harm, sub_id + activity_label ~ variable, mean)
-#write.table(har2, "test.txt")
+har <- run_analysis()
+harm <- melt(har, id=(c("sub_id","activity_label")))
+har2 <- dcast(harm, sub_id + activity_label ~ variable, mean)
+write.table(har2, "test.txt")
