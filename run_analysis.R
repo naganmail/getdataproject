@@ -1,50 +1,72 @@
-
+# this function downloads UCI HAR data set and unzips it if not yet done
 load_data <- function()
 {
-  adl_url <- "https://d396qusza40orc.cloudfront.net/getdata%2Fprojectfiles%2FUCI%20HAR%20Dataset.zip"
-  adl_file <- "getdata_projectfiles_UCI HAR Dataset.zip"
+  dataURL <- "https://d396qusza40orc.cloudfront.net/getdata%2Fprojectfiles%2FUCI%20HAR%20Dataset.zip"
+  dataFile <- "getdata_projectfiles_UCI HAR Dataset.zip"
   
-  if(!file.exists(adl_file)) download.file(adl_url, adl_file, method="curl")
+  if(!file.exists(dataFile)) download.file(dataURL, dataFile, method="curl")
   
-  if(!file.exists("UCI HAR Dataset")) unzip(adl_file)
+  if(!file.exists("UCI HAR Dataset")) unzip(dataFile)
 }
 
-run_analysis <- function(rows=-1)
+# This function does the following. 
+# 1. Merges the training and the test sets to create one data set.
+# 2. Extracts only the measurements on the mean and standard deviation for each measurement. 
+# 3. Uses descriptive activity names to name the activities in the data set
+# 4. Appropriately labels the data set with descriptive activity names. 
+# 5. Creates a second, independent tidy data set with the average of each variable for each activity and each subject. 
+run_analysis <- function()
 {
-  alt <- read.table("UCI HAR Dataset//activity_labels.txt", header=F, col.names=c("activity_id","activity_label"), nrows=rows)
-  aoTest <- read.table("UCI HAR Dataset//test//y_test.txt", header=F, col.names=c("activity_id"), nrows=rows)
-  subTest <- read.table("UCI HAR Dataset//test//subject_test.txt", header=F, col.names=c("sub_id"), nrows=rows)
-  aoTrain <- read.table("UCI HAR Dataset//train//y_train.txt", header=F, col.names=c("activity_id"), nrows=rows)
-  subTrain <- read.table("UCI HAR Dataset//train//subject_train.txt", header=F, col.names=c("sub_id"), nrows=rows)
+  # rows used to limit data during tests
+  rows<--1
+  actLabels <- read.table("UCI HAR Dataset//activity_labels.txt", header=F, col.names=c("activityId","activityLabel"))
+
+  # read test labels and subject set
+  aoTest <- read.table("UCI HAR Dataset//test//y_test.txt", header=F, col.names=c("activityId"), nrows=rows)
+  subTest <- read.table("UCI HAR Dataset//test//subject_test.txt", header=F, col.names=c("subId"), nrows=rows)
+
+  # read train labels and subject set
+  aoTrain <- read.table("UCI HAR Dataset//train//y_train.txt", header=F, col.names=c("activityId"), nrows=rows)
+  subTrain <- read.table("UCI HAR Dataset//train//subject_train.txt", header=F, col.names=c("subId"), nrows=rows)
   
-  tst <- read.table("UCI HAR Dataset/test/X_test.txt", header=F, colClasses=rep("numeric", times=561), comment.char="", nrows=rows)
-#  message(print(object.size(tst), units="Mb"))
-  train <- read.table("UCI HAR Dataset/train/X_train.txt", header=F, colClasses=rep("numeric", times=561), comment.char="", nrows=rows)
-#  message(print(object.size(train), units="Mb"))
+  # read the test and train measures
+  # parameters used to increase performance: 
+  # - set column classes vector 
+  # - set comments character to empty
+  featureClasses <- rep("numeric", times=561) 
+  testMeasures <- read.table("UCI HAR Dataset/test/X_test.txt", header=F, colClasses=featureClasses, comment.char="", nrows=rows)
+  trainMeasures <- read.table("UCI HAR Dataset/train/X_train.txt", header=F, colClasses=featureClasses, comment.char="", nrows=rows)
   
+  # prepare feature header columns
   features <- read.table("UCI HAR Dataset/features.txt", colClasses=c("numeric","character"))
-  features$V2 <- gsub("\\(\\)","",features$V2)
-  features$V2 <- gsub("-","_",features$V2)
+
+  # cleanse feature header columns
+  features$V2 <- gsub("-mean\\(\\)-","Mean",features$V2)
+  features$V2 <- gsub("-std\\(\\)-","Std",features$V2)
   features$V2 <- gsub("BodyBody","Body",features$V2)
-  names(tst) <- features$V2
-  names(train) <- features$V2
+  names(testMeasures) <- features$V2
+  names(trainMeasures) <- features$V2
   
-  colSel <- names(tst[,grep("mean_|std_", names(tst))])
-  
-  actSet <- rbind(merge(aoTest, alt), merge(aoTrain, alt))
+  # merge test and train set
+  fullSet <- rbind(testMeasures, trainMeasures)
 
-  fullSet <- rbind(tst, train)
-
+  # pick only measures on mean and standard deviation
+  colSel <- names(fullSet[,grep("Mean[X-Z]|Std[X-Z]", names(fullSet))])
   selSet <- fullSet[,colSel]
-  cbind(rbind(subTest,subTrain), actSet, selSet)
-  #read headers and prepare col classes vector; set comments character to empty
-  #read small part to estimate time
-  #read whole file
+  
+  # translate activity ids to activity labels
+  actSet <- rbind(merge(aoTest, actLabels), merge(aoTrain, actLabels))["activityLabel"]
+  
+  # combine subject, activity and measures columns into one frame
+  subSet <- rbind(subTest,subTrain)
+  tidySet1 <- cbind(subSet, actSet, selSet)
+  #write.table(tidySet1, "tidy_set1.txt", row.names=FALSE)
+  
+  # aggregate data using averages
+  tidySet1Melt <- melt(tidySet1, id=(c("subId","activityLabel")))
+  tidySet2 <- dcast(tidySet1Melt, subId + activityLabel ~ variable, mean, na.rm=T)
+  write.csv(tidySet2, "tidy_set2.txt", row.names=FALSE)
 }
 
 load_data()
-
-har <- run_analysis()
-harm <- melt(har, id=(c("sub_id","activity_label")))
-har2 <- dcast(harm, sub_id + activity_label ~ variable, mean)
-write.table(har2, "test.txt")
+run_analysis()
