@@ -14,9 +14,14 @@ load_data <- function()
 # 2. Extracts only the measurements on the mean and standard deviation for each measurement. 
 # 3. Uses descriptive activity names to name the activities in the data set
 # 4. Appropriately labels the data set with descriptive activity names. 
-# 5. Creates a second, independent tidy data set with the average of each variable for each activity and each subject. 
+# 5. Creates a second, independent tidy data set with the average of each variable for each activity and each subject.
+# 6. Writes the results into a file "uci_har_tidy2.txt".
 run_analysis <- function()
 {
+  # load libraries
+  library(reshape)
+  library(reshape2)
+  
   # rows used to limit data during tests
   rows<--1
   actLabels <- read.table("UCI HAR Dataset//activity_labels.txt", header=F, col.names=c("activityId","activityLabel"))
@@ -65,7 +70,7 @@ run_analysis <- function()
   # aggregate data using averages
   tidySet1Melt <- melt(tidySet1, id=(c("subId","activityLabel")))
   tidySet2 <- dcast(tidySet1Melt, subId + activityLabel ~ variable, mean, na.rm=T)
-  write.csv(tidySet2, "tidy_set2.txt", row.names=FALSE)
+  write.table(tidySet2, "uci_har_tidy2.txt", row.names=FALSE)
 }
 
 load_data()
